@@ -5,6 +5,7 @@ import Logo from "../images/dollar.png";
 import Image from "next/image";
 import Factory from "../ethereum/factory.js";
 import Modal from "react-bootstrap/Modal";
+import { BiBookBookmark, BiCheckCircle, BiFolderOpen } from "react-icons/bi";
 
 function Index({ campaigns }) {
   const [loading, setLoading] = useState(false);
@@ -16,7 +17,7 @@ function Index({ campaigns }) {
 
   const refreshCampaigns = async () => {
     const campaigns = await Factory.methods.getDeployedCampaigns().call();
-    return setCampaigns(campaigns);
+    return setCampaigns(campaigns.reverse().slice(0, 2));
   };
 
   const handleClose = () => setShow(false);
@@ -32,7 +33,6 @@ function Index({ campaigns }) {
       await Factory.methods.createCampaign(value).send({ from: accounts[0] });
       setStatus(200);
       return setTimeout(() => {
-        setStatus();
         handleClose();
         refreshCampaigns();
       }, 3000);
@@ -46,10 +46,13 @@ function Index({ campaigns }) {
       }, 3000);
     }
   };
-  const handleShow = () => setShow(true);
+  const handleShow = () => {
+    setStatus();
+    setShow(true);
+  };
 
   const getCampaigns = async () => {
-    setCampaigns(campaigns);
+    setCampaigns(campaigns.reverse().slice(0, 2));
     return setLoading(false);
   };
 
@@ -73,18 +76,22 @@ function Index({ campaigns }) {
       <div className="container mx-auto px-4 pb-12">
         <div className="flex justify-between mt-6 mb-5 ml-4 mr-4">
           <button
-            className="bg-blue-500 hover:bg-blue-700 text-white py-2 px-6 rounded shadow-md"
+            className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 rounded shadow-md"
             onClick={handleShow}
           >
-            New
+            <span>Create</span>{" "}
+            <BiBookBookmark size={"1.5em"} className="ml-1" />
           </button>
-          <button className="bg-blue-500 hover:bg-blue-700 text-white py-2 px-6 rounded shadow-md">
-            View Campaigns
-          </button>
+          <a href="/campaigns">
+            <button className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 rounded shadow-md">
+              <BiFolderOpen size={"1.5em"} className="mr-1" />
+              <span>View Campaigns</span>
+            </button>
+          </a>
         </div>
 
         <div className="mt-12">
-          <h1 className="text-xl mb-0 ml-4">Available Crowd Campaigns</h1>
+          <h1 className="text-xl mb-0 ml-4">Recent Crowd Campaigns</h1>
           <div className="mx-4">
             {deployedCampaigns.map((item) => (
               <div
@@ -160,7 +167,10 @@ function Index({ campaigns }) {
                   <span className="visually-hidden">Loading...</span>
                 </div>
               ) : (
-                "Create Campaign"
+                <div className="flex justify-center">
+                  <span>Create Campaign</span>
+                  <BiCheckCircle size={"1.5em"} className="ml-1" />
+                </div>
               )}
             </button>
           </Modal.Footer>
