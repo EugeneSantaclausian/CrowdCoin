@@ -79,6 +79,15 @@ contract Campaign {
         payable(request.receiver).transfer(request.value);
     }
 
+     function getCampaignSummary () public view returns (uint, uint, uint, address){
+        return (
+            minimumContribution,
+            address(this).balance,
+            contributorsCount,
+            manager
+        );
+    }
+
 
 }
 
