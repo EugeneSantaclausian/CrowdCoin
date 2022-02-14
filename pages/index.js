@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Web3 from "../ethereum/web3";
+import web3 from "web3";
 import Logo from "../images/dollar.png";
 import Image from "next/image";
 import Factory from "../ethereum/factory.js";
@@ -16,6 +17,7 @@ function Index({ campaigns }) {
   const [value, setValue] = useState();
   const [status, setStatus] = useState();
   const [valueErr, setValueErr] = useState("");
+  const [eth, setEth] = useState(0);
 
   const refreshCampaigns = async () => {
     setLoading("loadCampaigns");
@@ -34,6 +36,7 @@ function Index({ campaigns }) {
       return setValueErr("Enter An Amount");
     }
     setLoading(true);
+    setEth(0);
     const accounts = await Web3.ethereum.request({
       method: "eth_requestAccounts",
     });
@@ -160,11 +163,20 @@ function Index({ campaigns }) {
                 type="number"
                 className="form-control"
                 onChange={(event) => {
-                  setValueErr(""), setValue(event.target.value);
+                  setValueErr(""),
+                    setValue(event.target.value),
+                    setEth(web3.utils.fromWei(event.target.value));
                 }}
               />
-              <div id="emailHelp" className="form-text text-danger">
-                {valueErr}
+              <div
+                id="emailHelp"
+                className={
+                  valueErr
+                    ? "form-text text-danger"
+                    : "form-text text-dark font-bold"
+                }
+              >
+                {valueErr ? valueErr : `${eth} (eth)`}
               </div>
             </div>
           )}

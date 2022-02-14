@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Head from "next/head";
+import Web3 from "web3";
 import { useRouter } from "next/router";
 import Logo from "../images/dollar.png";
 import Image from "next/image";
@@ -10,6 +11,7 @@ import { BiBookBookmark } from "react-icons/bi";
 export async function getServerSideProps(context) {
   const campaignInstance = Campaign(context.query.id);
   const data = await campaignInstance.methods.getCampaignSummary().call();
+  const jSON_Contract = JSON.stringify([campaignInstance]);
 
   return {
     props: {
@@ -17,7 +19,7 @@ export async function getServerSideProps(context) {
       balance: data[1],
       contributorsCount: data[2],
       manager: data[3],
-      // contract: JSON.stringify(campaignInstance),
+      contract: jSON_Contract,
     },
   };
 }
@@ -27,11 +29,19 @@ function CampaignDetails({
   balance,
   contributorsCount,
   manager,
+  contract,
 }) {
   const router = useRouter();
   const {
     query: { id },
   } = router;
+
+  useEffect(() => {
+    return async () => {
+      const contractInstance = contract;
+      console.log("CONTRACT", contractInstance);
+    };
+  }, []);
 
   return (
     <div>
@@ -67,14 +77,18 @@ function CampaignDetails({
             <span className="font-bold">{id}</span>
           </h1>
 
-          <h1 className="text-xl mb-0 ml-4 my-4">
+          <h1 className="text-xl mb-0 ml-4 my-4 truncate">
             Minimum Contribution:
-            <span className="font-bold">{minimumContribution} (ETH)</span>
+            <span className="font-bold">
+              {Web3.utils.fromWei(minimumContribution)} (ETH)
+            </span>
           </h1>
 
-          <h1 className="text-xl mb-0 ml-4 my-4">
+          <h1 className="text-xl mb-0 ml-4 my-4 truncate">
             Balance:
-            <span className="font-bold">{balance} (ETH)</span>
+            <span className="font-bold">
+              {Web3.utils.fromWei(balance)} (ETH)
+            </span>
           </h1>
 
           <h1 className="text-xl mb-0 ml-4 my-4">
