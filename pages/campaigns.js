@@ -1,5 +1,6 @@
 import React from "react";
 import Head from "next/head";
+import Link from "next/link";
 import Logo from "../images/dollar.png";
 import Image from "next/image";
 import Factory from "../ethereum/factory.js";
@@ -43,12 +44,16 @@ function Campaigns({ campaigns }) {
                 className="flex-auto rounded mt-3 py-4 drop-shadow-xl bg-amber-200"
               >
                 <p className="text-base font-bold px-3 truncate">{item}</p>
-                <a
-                  href="/campaigns"
-                  className="text-sky-600 hover:underline hover:text-sky-800 ml-4"
+                <Link
+                  href={{
+                    pathname: "/campaignDetails",
+                    query: { id: `${item}` },
+                  }}
                 >
-                  View Details
-                </a>
+                  <a className="text-sky-600 hover:underline hover:text-sky-800 ml-4">
+                    View Details
+                  </a>
+                </Link>
               </div>
             ))}
           </div>
