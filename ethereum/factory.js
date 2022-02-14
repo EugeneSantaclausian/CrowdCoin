@@ -1,7 +1,7 @@
 import Web3 from "./web3";
 import CampaignFactory from "./build/CampaignFactory.json";
 
-const contractAddress = "0xED03ad84B070b4814ABa55394214B70190D4fCA7";
+const contractAddress = "0x0bC14A7cfbD00Bcca6790c72DE7D99679B089cf8";
 
 const instance = new Web3.web3.eth.Contract(
   CampaignFactory.abi,

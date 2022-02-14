@@ -10,7 +10,8 @@ contract CampaignFactory {
     }
 
     function getDeployedCampaigns () public view returns (address[] memory) {
-        return deployedCampaigns;
+        address[] storage campaigns = deployedCampaigns;
+        return campaigns;
     }
 
 }
