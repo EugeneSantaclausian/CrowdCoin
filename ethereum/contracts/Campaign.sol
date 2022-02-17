@@ -65,7 +65,7 @@ contract Campaign {
 
     function approveRequest(uint index) public {
         Request storage request = requests[index];
-        require(contributors[msg.sender], "Only Contributors can approve this Request");
+        require(contributors[msg.sender] == true, "Only Contributors can approve this Request");
         require(!request.approvals[msg.sender], "You have already approved this Request");
         request.approvals[msg.sender] = true;
         request.approvalCount++;

@@ -11,20 +11,18 @@ import { BiBookBookmark, BiCheckCircle, BiFolderOpen } from "react-icons/bi";
 import { BsStarFill } from "react-icons/bs";
 
 function Index({ campaigns }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [deployedCampaigns, setCampaigns] = useState([]);
   const [show, setShow] = useState(false);
   const [value, setValue] = useState();
   const [status, setStatus] = useState();
   const [valueErr, setValueErr] = useState("");
-  const [eth, setEth] = useState(0);
 
   const refreshCampaigns = async () => {
     setLoading("loadCampaigns");
     const campaigns = await Factory.methods.getDeployedCampaigns().call();
     const newCampaigns = [...campaigns];
     const reversedCampaigns = newCampaigns.reverse();
-    console.log("reversed:", reversedCampaigns);
     setCampaigns(reversedCampaigns.slice(0, 2));
     return setLoading(false);
   };
@@ -36,12 +34,14 @@ function Index({ campaigns }) {
       return setValueErr("Enter An Amount");
     }
     setLoading(true);
-    setEth(0);
     const accounts = await Web3.ethereum.request({
       method: "eth_requestAccounts",
     });
+    const ethValue = web3.utils.toWei(value, "ether");
     try {
-      await Factory.methods.createCampaign(value).send({ from: accounts[0] });
+      await Factory.methods
+        .createCampaign(ethValue)
+        .send({ from: accounts[0] });
       setLoading(false);
       setStatus(200);
       return setTimeout(() => {
@@ -106,7 +106,9 @@ function Index({ campaigns }) {
 
         <div className="mt-12">
           <h1 className="text-xl mb-0 ml-4">
-            {deployedCampaigns.length === 0
+            {loading
+              ? null
+              : deployedCampaigns.length === 0 && !loading
               ? "No Campaigns Found"
               : "Recent Crowd Campaigns"}
           </h1>
@@ -157,15 +159,16 @@ function Index({ campaigns }) {
             <Modal.Title>New Campaign</Modal.Title>
           </Modal.Header>
           {loading || status === 200 ? null : (
-            <div className="my-6 mx-6">
-              <label className="form-label">Minimum Amount</label>
+            <form
+              className="my-6 mx-6"
+              onSubmit={(e) => handleCreateCampaign(e)}
+            >
+              <label className="form-label">Set Minimum Contribution</label>
               <input
                 type="number"
                 className="form-control"
                 onChange={(event) => {
-                  setValueErr(""),
-                    setValue(event.target.value),
-                    setEth(web3.utils.fromWei(event.target.value));
+                  setValueErr(""), setValue(event.target.value);
                 }}
               />
               <div
@@ -176,9 +179,9 @@ function Index({ campaigns }) {
                     : "form-text text-dark font-bold"
                 }
               >
-                {valueErr ? valueErr : `${eth} (eth)`}
+                {valueErr ? valueErr : `(ETH)`}
               </div>
-            </div>
+            </form>
           )}
           <Modal.Footer className="flex justify-between border-0">
             <p

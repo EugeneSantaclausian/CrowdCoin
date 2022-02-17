@@ -1,25 +1,27 @@
-import React, { useEffect } from "react";
+import React, { useState } from "react";
+import Link from "next/link";
 import Head from "next/head";
 import Web3 from "web3";
+import web3 from "../ethereum/web3";
 import { useRouter } from "next/router";
 import Logo from "../images/dollar.png";
 import Image from "next/image";
 import Campaign from "../ethereum/campaign";
 import { FiChevronLeft } from "react-icons/fi";
-import { BiBookBookmark } from "react-icons/bi";
 
 export async function getServerSideProps(context) {
   const campaignInstance = Campaign(context.query.id);
   const data = await campaignInstance.methods.getCampaignSummary().call();
-  const jSON_Contract = JSON.stringify(Array(campaignInstance));
+  const contractAddress = context.query.id;
 
   return {
     props: {
       minimumContribution: data[0],
       balance: data[1],
       contributorsCount: data[2],
-      manager: data[3],
-      contract: jSON_Contract,
+      numberofReq: data[3],
+      manager: data[4],
+      contract_address: contractAddress,
     },
   };
 }
@@ -28,20 +30,51 @@ function CampaignDetails({
   minimumContribution,
   balance,
   contributorsCount,
+  numberofReq,
   manager,
-  contract,
+  contract_address,
 }) {
+  const [loading, setLoading] = useState(false);
+  const [value, setValue] = useState();
+  const [status, setStatus] = useState();
+  const [valueErr, setValueErr] = useState("");
+
   const router = useRouter();
   const {
     query: { id },
   } = router;
 
-  useEffect(() => {
-    return async () => {
-      const contractInstance = contract;
-      console.log("CONTRACT", contractInstance);
-    };
-  }, []);
+  const handleContribute = async (e) => {
+    e.preventDefault();
+    if (!value) {
+      return setValueErr("Enter An Amount");
+    } else if (value < 0) {
+      return setValueErr("Invalid Amount");
+    }
+    setLoading(true);
+    const accounts = await web3.ethereum.request({
+      method: "eth_requestAccounts",
+    });
+    const Contract = Campaign(contract_address);
+    try {
+      await Contract.methods
+        .contribute()
+        .send({ from: accounts[0], value: Web3.utils.toWei(value, "ether") });
+      setLoading(false);
+      setStatus(200);
+      return setTimeout(() => {
+        setStatus();
+        setValue();
+      }, 3000);
+    } catch (error) {
+      console.log(error);
+      setStatus(400);
+      setLoading(false);
+      return setTimeout(() => {
+        setStatus();
+      }, 3000);
+    }
+  };
 
   return (
     <div>
@@ -58,18 +91,26 @@ function CampaignDetails({
 
       <div className="container mx-auto px-4 pb-12">
         <div className="flex justify-between mt-6 mb-5 ml-4 mr-4">
-          <a href="/">
+          <a href="/campaigns">
             <button className="flex justify-start bg-blue-500 hover:bg-blue-700 text-white py-2 px-6 rounded shadow-md">
               <FiChevronLeft size={"1.5em"} className="mr-1" />{" "}
-              <span>Back</span>
+              <span>Campaigns List</span>
             </button>
           </a>
 
-          <button className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 rounded shadow-md">
-            <span>Create Request</span>{" "}
-            <BiBookBookmark size={"1.5em"} className="ml-1" />
-          </button>
+          <Link
+            href={{
+              pathname: "/requests",
+              query: { id: `${contract_address}` },
+            }}
+          >
+            <button className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 rounded shadow-md">
+              Spending Requests({`${numberofReq}`})
+            </button>
+          </Link>
         </div>
+
+        <h1 className="display-6 font-bold ml-4">Details</h1>
 
         <h1 className="text-xl mb-4 ml-4 truncate">
           Campaign Address:
@@ -154,13 +195,47 @@ function CampaignDetails({
           <div className="col-lg-4 col-sm-12 bg-slate-200 rounded">
             <div className="my-6 mx-6">
               <label className="form-label">Amount To Contribute</label>
-              <input type="number" className="form-control" />
+              <input
+                type="number"
+                className="form-control"
+                onChange={(event) => {
+                  setValueErr(""), setValue(event.target.value);
+                }}
+              />
               <div
                 id="emailHelp"
-                className="form-text text-dark font-bold"
-              ></div>
-              <button className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 mt-3 rounded shadow-md">
-                Contribute
+                className={
+                  status === 200
+                    ? "form-text font-bold text-success"
+                    : status === 400
+                    ? "form-text font-bold text-danger"
+                    : valueErr
+                    ? "form-text text-danger"
+                    : "form-text text-dark font-bold"
+                }
+              >
+                {status === 200
+                  ? "Transaction Success!"
+                  : status === 400
+                  ? "Transaction Failed!"
+                  : valueErr
+                  ? valueErr
+                  : `(ETH)`}
+              </div>
+              <button
+                className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 mt-3 rounded shadow-md"
+                onClick={(e) => handleContribute(e)}
+              >
+                {loading ? (
+                  <div
+                    className="spinner-border spinner-border-sm text-light text-center"
+                    role="status"
+                  >
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                ) : (
+                  "Contribute"
+                )}
               </button>
             </div>
           </div>
