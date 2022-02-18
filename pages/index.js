@@ -232,7 +232,7 @@ function Index({ campaigns }) {
   );
 }
 
-export async function getStaticProps() {
+export async function getServerSideProps() {
   const campaigns = await Factory.methods.getDeployedCampaigns().call();
 
   return {
