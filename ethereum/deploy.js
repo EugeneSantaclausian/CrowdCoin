@@ -20,7 +20,7 @@ const deploy = async () => {
       data: compiledFactory.evm.bytecode.object,
       arguments: ["Campain Factory Contract Initial Deployment"],
     })
-    .send({ from: accounts[0], gas: "2000000" });
+    .send({ from: accounts[0], gas: "3000000" });
   console.log("RESULT:", result);
   provider.engine.stop(); //Ends Deployment Thread
 };

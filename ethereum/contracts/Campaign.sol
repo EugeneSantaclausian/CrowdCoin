@@ -2,15 +2,19 @@
 pragma solidity >=0.4.0 <0.9.0;
 
 contract CampaignFactory {
-    address[] public deployedCampaigns;
+    string public campaignName;
+    address[] public deployedCampaignAddresses;
+    mapping(address => string) public deployedCampaigns;
 
-    function createCampaign(uint minimum) public {
-        address newCampaign = address(new Campaign(minimum, msg.sender));
-        deployedCampaigns.push(newCampaign);
+    function createCampaign(uint minimum, string memory name) public {
+        campaignName = name;
+        address newCampaign = address(new Campaign(minimum, msg.sender, name));
+        deployedCampaignAddresses.push(newCampaign);
+        deployedCampaigns[newCampaign] = name;
     }
 
-    function getDeployedCampaigns () public view returns (address[] memory) {
-        return deployedCampaigns;
+     function getDeployedCampaigns () public view returns (address[] memory) {
+        return deployedCampaignAddresses;
     }
 
 }
@@ -25,6 +29,7 @@ contract Campaign {
         mapping(address => bool) approvals;
     }
 
+    string public campaignName;
     uint public contributorsCount;
     uint public numberofRequests;
     mapping(uint => Request) public requests;
@@ -33,9 +38,10 @@ contract Campaign {
     mapping(address => bool) public contributors;
   
 
-    constructor (uint minimum, address creator) {
+    constructor (uint minimum, address creator, string memory name) {
         manager = creator;
         minimumContribution = minimum;
+        campaignName = name;
     }
 
     modifier restricted() {

@@ -13,24 +13,36 @@ import { BsStarFill } from "react-icons/bs";
 function Index({ campaigns }) {
   const [loading, setLoading] = useState(true);
   const [deployedCampaigns, setCampaigns] = useState([]);
+  const [campaignNames, setCampaignNames] = useState([]);
   const [show, setShow] = useState(false);
   const [value, setValue] = useState();
+  const [name, setName] = useState();
   const [status, setStatus] = useState();
   const [valueErr, setValueErr] = useState("");
+  const [nameErr, setNameErr] = useState("");
 
   const refreshCampaigns = async () => {
     setLoading("loadCampaigns");
     const campaigns = await Factory.methods.getDeployedCampaigns().call();
     const newCampaigns = [...campaigns];
     const reversedCampaigns = newCampaigns.reverse();
-    setCampaigns(reversedCampaigns.slice(0, 2));
+    setCampaigns(reversedCampaigns.slice(0, 1));
+    let myList = reversedCampaigns.slice(0, 1);
+    const allCampaigns = await Promise.all(
+      myList.map((element) => {
+        return Factory.methods.deployedCampaigns(element).call();
+      })
+    );
+    setCampaignNames(allCampaigns);
     return setLoading(false);
   };
 
   const handleClose = () => setShow(false);
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
-    if (!value) {
+    if (!name) {
+      return setNameErr("Enter Campaign Name");
+    } else if (!value) {
       return setValueErr("Enter An Amount");
     }
     setLoading(true);
@@ -38,9 +50,10 @@ function Index({ campaigns }) {
       method: "eth_requestAccounts",
     });
     const ethValue = web3.utils.toWei(value, "ether");
+    const nameStr = String(name);
     try {
       await Factory.methods
-        .createCampaign(ethValue)
+        .createCampaign(ethValue, nameStr)
         .send({ from: accounts[0] });
       setLoading(false);
       setStatus(200);
@@ -66,7 +79,15 @@ function Index({ campaigns }) {
   };
 
   const getCampaigns = async () => {
-    setCampaigns(campaigns.reverse().slice(0, 2));
+    setLoading("loadCampaigns");
+    let myList = campaigns;
+    setCampaigns(campaigns.reverse().slice(0, 1));
+    const allCampaigns = await Promise.all(
+      myList.map((element) => {
+        return Factory.methods.deployedCampaigns(element).call();
+      })
+    );
+    setCampaignNames(allCampaigns);
     return setLoading(false);
   };
 
@@ -99,18 +120,18 @@ function Index({ campaigns }) {
           <a href="/campaigns">
             <button className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 rounded shadow-md">
               <BiFolderOpen size={"1.5em"} className="mr-1" />
-              <span>View Campaigns</span>
+              <span>View All Campaigns</span>
             </button>
           </a>
         </div>
 
         <div className="mt-12">
-          <h1 className="text-xl mb-0 ml-4">
+          <h1 className="text-2xl mb-0 ml-4">
             {loading
               ? null
               : deployedCampaigns.length === 0 && !loading
               ? "No Campaigns Found"
-              : "Recent Crowd Campaigns"}
+              : "Latest Crowd Campaign"}
           </h1>
           <div className="mx-4">
             {loading === "loadCampaigns" ? (
@@ -121,10 +142,13 @@ function Index({ campaigns }) {
                 <span className="visually-hidden">Loading...</span>
               </div>
             ) : (
-              deployedCampaigns.map((item) => (
+              deployedCampaigns.map((item, index) => (
                 <div className="mt-3 relative" key={item}>
                   <div className="flex-auto rounded py-4 drop-shadow-xl bg-amber-200">
-                    <p className="text-base font-bold px-3 truncate">{item}</p>
+                    <p className="text-xl font-bold underline px-3 truncate">
+                      {campaignNames[index]}
+                    </p>
+                    <p className="text-base px-3 truncate">{item}</p>
                     <Link
                       href={{
                         pathname: "/campaignDetails",
@@ -163,6 +187,18 @@ function Index({ campaigns }) {
               className="my-6 mx-6"
               onSubmit={(e) => handleCreateCampaign(e)}
             >
+              <label className="form-label">Name of Campaign</label>
+              <input
+                type="text"
+                className="form-control"
+                onChange={(event) => {
+                  setNameErr(""), setName(event.target.value);
+                }}
+              />
+              <div id="emailHelp" className="form-text text-danger mb-6">
+                {nameErr}
+              </div>
+
               <label className="form-label">Set Minimum Contribution</label>
               <input
                 type="number"

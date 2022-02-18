@@ -81,9 +81,7 @@ function Requests({ numberofReq, approversCount, contract_address }) {
       setReqStatus(reqStatus + 1);
       return setLoadApproval(false);
     } catch (error) {
-      setModalText(
-        `Approval Request Failed! Make sure you are a Contributor in order to approve this Spending Request`
-      );
+      setModalText(`${error.message}`);
       setAlertStatus(400);
       setShowAlert(true);
       return setLoadApproval(false);
@@ -104,9 +102,7 @@ function Requests({ numberofReq, approversCount, contract_address }) {
       setReqStatus(reqStatus + 1);
       return setLoadFinalize(false);
     } catch (error) {
-      setModalText(
-        `Transaction Failed! Funds have not been sent to your account`
-      );
+      setModalText(`${error.message}`);
       setAlertStatus(400);
       setShowAlert(true);
       return setLoadFinalize(false);
@@ -146,7 +142,6 @@ function Requests({ numberofReq, approversCount, contract_address }) {
         setValue();
       }, 3000);
     } catch (error) {
-      console.log(error);
       setStatus(400);
       setLoading(false);
       return setTimeout(() => {
@@ -325,6 +320,10 @@ function Requests({ numberofReq, approversCount, contract_address }) {
           >
             <span className="visually-hidden">Loading...</span>
           </div>
+        ) : !searchReq && requestsList.length === 0 ? (
+          <p className="text-2xl py-28 ml-4 text-slate-500">
+            No Available Request Campaigns
+          </p>
         ) : (
           <div className="table-responsive mt-6">
             <table className="table table-striped table-hover table-bordered shadow-md">

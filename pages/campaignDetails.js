@@ -8,10 +8,12 @@ import Logo from "../images/dollar.png";
 import Image from "next/image";
 import Campaign from "../ethereum/campaign";
 import { FiChevronLeft } from "react-icons/fi";
+import Modal from "react-bootstrap/Modal";
 
 export async function getServerSideProps(context) {
   const campaignInstance = Campaign(context.query.id);
   const data = await campaignInstance.methods.getCampaignSummary().call();
+  const campaignName = await campaignInstance.methods.campaignName().call();
   const contractAddress = context.query.id;
 
   return {
@@ -21,7 +23,8 @@ export async function getServerSideProps(context) {
       contributorsCount: data[2],
       numberofReq: data[3],
       manager: data[4],
-      contract_address: contractAddress,
+      contractAddress,
+      campaignName,
     },
   };
 }
@@ -32,17 +35,23 @@ function CampaignDetails({
   contributorsCount,
   numberofReq,
   manager,
-  contract_address,
+  contractAddress,
+  campaignName,
 }) {
   const [loading, setLoading] = useState(false);
   const [value, setValue] = useState();
   const [status, setStatus] = useState();
   const [valueErr, setValueErr] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertStatus, setAlertStatus] = useState();
+  const [modalText, setModalText] = useState("");
 
   const router = useRouter();
   const {
     query: { id },
   } = router;
+
+  const handleCloseAlert = () => setShowAlert(false);
 
   const handleContribute = async (e) => {
     e.preventDefault();
@@ -55,23 +64,31 @@ function CampaignDetails({
     const accounts = await web3.ethereum.request({
       method: "eth_requestAccounts",
     });
-    const Contract = Campaign(contract_address);
+    const Contract = Campaign(contractAddress);
     try {
       await Contract.methods
         .contribute()
         .send({ from: accounts[0], value: Web3.utils.toWei(value, "ether") });
       setLoading(false);
       setStatus(200);
+      setModalText("Transaction Successful!");
+      setAlertStatus(200);
+      setShowAlert(true);
       return setTimeout(() => {
         setStatus();
         setValue();
+        setShowAlert(false);
       }, 3000);
     } catch (error) {
       console.log(error);
+      setModalText(`${error.message}`);
       setStatus(400);
+      setAlertStatus(400);
+      setShowAlert(true);
       setLoading(false);
       return setTimeout(() => {
         setStatus();
+        setShowAlert(false);
       }, 3000);
     }
   };
@@ -101,7 +118,7 @@ function CampaignDetails({
           <Link
             href={{
               pathname: "/requests",
-              query: { id: `${contract_address}` },
+              query: { id: `${contractAddress}` },
             }}
           >
             <button className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 rounded shadow-md">
@@ -110,7 +127,7 @@ function CampaignDetails({
           </Link>
         </div>
 
-        <h1 className="display-6 font-bold ml-4">Details</h1>
+        <h1 className="display-6 font-bold ml-4">{campaignName}</h1>
 
         <h1 className="text-xl mb-4 ml-4 truncate">
           Campaign Address:
@@ -239,6 +256,22 @@ function CampaignDetails({
               </button>
             </div>
           </div>
+
+          {/*Modal or Notifications*/}
+          <Modal show={showAlert} onHide={handleCloseAlert}>
+            <Modal.Header
+              closeButton
+              className={alertStatus === 200 ? "bg-green-500" : "bg-red-400"}
+            >
+              <Modal.Title className="text-white">
+                {alertStatus === 200 ? "Success" : "Error"}
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <p className="w-full whitespace-normal">{modalText}</p>
+            </Modal.Body>
+          </Modal>
+          {/*Modal For Notifications*/}
         </div>
       </div>
     </div>
