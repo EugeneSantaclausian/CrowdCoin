@@ -371,7 +371,7 @@ function Requests({
                                 ? "progress-bar bg-danger"
                                 : Math.round(
                                     (item.approvalCount / approversCount) * 100
-                                  ) < 50
+                                  ) <= 50
                                 ? "progress-bar"
                                 : "progress-bar bg-green-500"
                             }
