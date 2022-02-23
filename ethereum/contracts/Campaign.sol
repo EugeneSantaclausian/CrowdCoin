@@ -32,6 +32,7 @@ contract Campaign {
     string public campaignName;
     uint public contributorsCount;
     uint public numberofRequests;
+    uint public completedRequests;
     mapping(uint => Request) public requests;
     address public manager;
     uint public minimumContribution;
@@ -75,23 +76,21 @@ contract Campaign {
         require(!request.approvals[msg.sender], "You have already approved this Request");
         request.approvals[msg.sender] = true;
         request.approvalCount++;
+         if(request.approvalCount > (contributorsCount/2) && !request.complete){
+            request.complete = true;
+             completedRequests++;
+            payable(request.receiver).transfer(request.value);
+        }
     }
 
-    function confirmApproval(uint index) public restricted payable {
-        Request storage request = requests[index];
-        require(!request.complete, "You have already confirmed the approval of this Request");
-        require(request.approvalCount > (contributorsCount/2), "At Least 50% of your contributors must approve");
-        request.complete = true;
-        payable(request.receiver).transfer(request.value);
-    }
-
-     function getCampaignSummary () public view returns (uint, uint, uint, uint, address){
+     function getCampaignSummary () public view returns (uint, uint, uint, uint, address, uint){
         return (
             minimumContribution,
             address(this).balance,
             contributorsCount,
             numberofRequests,
-            manager
+            manager,
+            completedRequests
         );
     }
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Head from "next/head";
 import Web3 from "web3";
@@ -21,7 +21,7 @@ export async function getServerSideProps(context) {
       minimumContribution: data[0],
       balance: data[1],
       contributorsCount: data[2],
-      numberofReq: data[3],
+      numberofReq: data[3] - data[5],
       manager: data[4],
       contractAddress,
       campaignName,
@@ -39,11 +39,14 @@ function CampaignDetails({
   campaignName,
 }) {
   const [loading, setLoading] = useState(false);
+  const [refresh, setRefresh] = useState(false);
   const [value, setValue] = useState();
   const [status, setStatus] = useState();
+  const [contributeCount, setContribute] = useState(0);
   const [valueErr, setValueErr] = useState("");
   const [showAlert, setShowAlert] = useState(false);
   const [alertStatus, setAlertStatus] = useState();
+  const [details, setDetails] = useState();
   const [modalText, setModalText] = useState("");
 
   const router = useRouter();
@@ -59,13 +62,23 @@ function CampaignDetails({
       return setValueErr("Enter An Amount");
     } else if (value < 0) {
       return setValueErr("Invalid Amount");
+    } else if (!web3.ethereum.isMetaMask) {
+      setModalText(`Please Install MetaMask`);
+      setStatus(400);
+      setAlertStatus(400);
+      setShowAlert(true);
+      return setTimeout(() => {
+        setStatus();
+        setShowAlert(false);
+      }, 3000);
     }
-    setLoading(true);
-    const accounts = await web3.ethereum.request({
-      method: "eth_requestAccounts",
-    });
-    const Contract = Campaign(contractAddress);
+
     try {
+      const accounts = await web3.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      const Contract = Campaign(contractAddress);
+      setLoading(true);
       await Contract.methods
         .contribute()
         .send({ from: accounts[0], value: Web3.utils.toWei(value, "ether") });
@@ -74,6 +87,7 @@ function CampaignDetails({
       setModalText("Transaction Successful!");
       setAlertStatus(200);
       setShowAlert(true);
+      setContribute(contributeCount + 1);
       return setTimeout(() => {
         setStatus();
         setValue();
@@ -92,6 +106,16 @@ function CampaignDetails({
       }, 3000);
     }
   };
+
+  useEffect(() => {
+    return async () => {
+      setRefresh(true);
+      const campaignInstance = Campaign(contractAddress);
+      const data = await campaignInstance.methods.getCampaignSummary().call();
+      setDetails(data);
+      return setRefresh(false);
+    };
+  }, [contributeCount]);
 
   return (
     <div>
@@ -122,7 +146,7 @@ function CampaignDetails({
             }}
           >
             <button className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 rounded shadow-md">
-              Spending Requests({`${numberofReq}`})
+              Spending Requests({details ? details[3] : `${numberofReq}`})
             </button>
           </Link>
         </div>
@@ -134,144 +158,162 @@ function CampaignDetails({
           <span className="font-bold">{id}</span>
         </h1>
 
-        <div className="row">
-          <div className="col-lg-8 col-sm-12">
-            <div className="row row-cols-2">
-              <div className="col">
-                <div className="card mx-1 my-2 shadow-md">
-                  <h5 className="card-header font-bold bg-slate-200">
-                    {" "}
-                    Manager Address
-                  </h5>
-                  <div className="card-body">
-                    <h5 className="card-title text-wrap font-bold">
-                      {manager}
-                    </h5>
-                    <p className="card-text">
-                      The manager created this campaign and can create requests
-                      to withdraw money
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col">
-                <div className="card mx-1 my-2 shadow-md">
-                  <h5 className="card-header font-bold bg-slate-200">
-                    {" "}
-                    Total Contributors
-                  </h5>
-                  <div className="card-body">
-                    <h5 className="card-title text-wrap font-bold">
-                      {contributorsCount}
-                    </h5>
-                    <p className="card-text">
-                      Number of People who have donated to this Campaign
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col">
-                <div className="card mx-1 my-2 shadow-md">
-                  <h5 className="card-header font-bold bg-slate-200">
-                    {" "}
-                    Minimum Contribution
-                  </h5>
-                  <div className="card-body">
-                    <h5 className="card-title text-wrap font-bold">
-                      {Web3.utils.fromWei(minimumContribution)} (ETH)
-                    </h5>
-                    <p className="card-text">
-                      You must contribute at least this much Ethereum to become
-                      an Approver
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col">
-                <div className="card mx-1 my-2 shadow-md">
-                  <h5 className="card-header font-bold bg-slate-200">
-                    {" "}
-                    Balance
-                  </h5>
-                  <div className="card-body">
-                    <h5 className="card-title text-wrap font-bold">
-                      {Web3.utils.fromWei(balance)} (ETH)
-                    </h5>
-                    <p className="card-text">
-                      The Balance is how much this Campaign has left to spend
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-lg-4 col-sm-12 bg-slate-200 rounded">
-            <div className="my-6 mx-6">
-              <label className="form-label">Amount To Contribute</label>
-              <input
-                type="number"
-                className="form-control"
-                onChange={(event) => {
-                  setValueErr(""), setValue(event.target.value);
-                }}
-              />
-              <div
-                id="emailHelp"
-                className={
-                  status === 200
-                    ? "form-text font-bold text-success"
-                    : status === 400
-                    ? "form-text font-bold text-danger"
-                    : valueErr
-                    ? "form-text text-danger"
-                    : "form-text text-dark font-bold"
-                }
-              >
-                {status === 200
-                  ? "Transaction Success!"
-                  : status === 400
-                  ? "Transaction Failed!"
-                  : valueErr
-                  ? valueErr
-                  : `(ETH)`}
-              </div>
-              <button
-                className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 mt-3 rounded shadow-md"
-                onClick={(e) => handleContribute(e)}
-              >
-                {loading ? (
-                  <div
-                    className="spinner-border spinner-border-sm text-light text-center"
-                    role="status"
-                  >
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                ) : (
-                  "Contribute"
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/*Modal or Notifications*/}
-          <Modal show={showAlert} onHide={handleCloseAlert}>
-            <Modal.Header
-              closeButton
-              className={alertStatus === 200 ? "bg-green-500" : "bg-red-400"}
+        <div>
+          {refresh ? (
+            <div
+              className="spinner-border spinner-border-md text-primary text-center my-12"
+              role="status"
             >
-              <Modal.Title className="text-white">
-                {alertStatus === 200 ? "Success" : "Error"}
-              </Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <p className="w-full whitespace-normal">{modalText}</p>
-            </Modal.Body>
-          </Modal>
-          {/*Modal For Notifications*/}
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          ) : (
+            <div className="row">
+              <div className="col-lg-8 col-sm-12">
+                <div className="row row-cols-2">
+                  <div className="col">
+                    <div className="card mx-1 my-2 shadow-md">
+                      <h5 className="card-header font-bold bg-slate-200">
+                        {" "}
+                        Manager Address
+                      </h5>
+                      <div className="card-body">
+                        <h5 className="card-title text-wrap font-bold">
+                          {manager}
+                        </h5>
+                        <p className="card-text">
+                          The manager created this campaign and can create
+                          requests to withdraw money
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col">
+                    <div className="card mx-1 my-2 shadow-md">
+                      <h5 className="card-header font-bold bg-slate-200">
+                        {" "}
+                        Total Contributors
+                      </h5>
+                      <div className="card-body">
+                        <h5 className="card-title text-wrap font-bold">
+                          {details ? details[2] : contributorsCount}
+                        </h5>
+                        <p className="card-text">
+                          Number of People who have donated to this Campaign
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col">
+                    <div className="card mx-1 my-2 shadow-md">
+                      <h5 className="card-header font-bold bg-slate-200">
+                        {" "}
+                        Minimum Contribution
+                      </h5>
+                      <div className="card-body">
+                        <h5 className="card-title text-wrap font-bold">
+                          {Web3.utils.fromWei(minimumContribution)} (ETH)
+                        </h5>
+                        <p className="card-text">
+                          You must contribute at least this much Ethereum to
+                          become an Approver
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col">
+                    <div className="card mx-1 my-2 shadow-md">
+                      <h5 className="card-header font-bold bg-slate-200">
+                        {" "}
+                        Balance
+                      </h5>
+                      <div className="card-body">
+                        <h5 className="card-title text-wrap font-bold">
+                          {details
+                            ? Web3.utils.fromWei(details[1])
+                            : Web3.utils.fromWei(balance)}{" "}
+                          (ETH)
+                        </h5>
+                        <p className="card-text">
+                          The Balance is how much this Campaign has left to
+                          spend
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-lg-4 col-sm-12 bg-slate-200 rounded">
+                <div className="my-6 mx-6">
+                  <label className="form-label">Amount To Contribute</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    onChange={(event) => {
+                      setValueErr(""), setValue(event.target.value);
+                    }}
+                  />
+                  <div
+                    id="emailHelp"
+                    className={
+                      status === 200
+                        ? "form-text font-bold text-success"
+                        : status === 400
+                        ? "form-text font-bold text-danger"
+                        : valueErr
+                        ? "form-text text-danger"
+                        : "form-text text-dark font-bold"
+                    }
+                  >
+                    {status === 200
+                      ? "Transaction Success!"
+                      : status === 400
+                      ? "Transaction Failed!"
+                      : valueErr
+                      ? valueErr
+                      : `(ETH)`}
+                  </div>
+                  <button
+                    className="flex justify-center bg-blue-500 hover:bg-blue-700 text-white py-2 px-3 mt-3 rounded shadow-md"
+                    onClick={(e) => handleContribute(e)}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <div
+                        className="spinner-border spinner-border-sm text-light text-center"
+                        role="status"
+                      >
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                    ) : (
+                      "Contribute"
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/*Modal or Notifications*/}
+              <Modal show={showAlert} onHide={handleCloseAlert}>
+                <Modal.Header
+                  closeButton
+                  className={
+                    alertStatus === 200 ? "bg-green-500" : "bg-red-400"
+                  }
+                >
+                  <Modal.Title className="text-white">
+                    {alertStatus === 200 ? "Success" : "Error"}
+                  </Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                  <p className="w-full whitespace-normal">{modalText}</p>
+                </Modal.Body>
+              </Modal>
+              {/*Modal For Notifications*/}
+            </div>
+          )}
         </div>
       </div>
     </div>

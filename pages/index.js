@@ -44,14 +44,17 @@ function Index({ campaigns }) {
       return setNameErr("Enter Campaign Name");
     } else if (!value) {
       return setValueErr("Enter An Amount");
+    } else if (!Web3.ethereum.isMetaMask) {
+      return setStatus(404);
     }
-    setLoading(true);
-    const accounts = await Web3.ethereum.request({
-      method: "eth_requestAccounts",
-    });
-    const ethValue = web3.utils.toWei(value, "ether");
-    const nameStr = String(name);
+
     try {
+      const accounts = await Web3.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      const ethValue = web3.utils.toWei(value, "ether");
+      const nameStr = String(name);
+      setLoading(true);
       await Factory.methods
         .createCampaign(ethValue, nameStr)
         .send({ from: accounts[0] });
@@ -64,8 +67,6 @@ function Index({ campaigns }) {
         refreshCampaigns();
       }, 3000);
     } catch (error) {
-      console.log(error);
-      setValue();
       setStatus(400);
       setLoading(false);
       return setTimeout(() => {
@@ -222,19 +223,19 @@ function Index({ campaigns }) {
           <Modal.Footer className="flex justify-between border-0">
             <p
               className={
-                loading
+                loading || status === 200
                   ? "text-base font-bold pb-2"
-                  : status === 400
-                  ? "text-base font-bold pb-2 text-danger"
-                  : status <= 200
-                  ? "text-base font-bold pb-2 text-success"
-                  : null
+                  : status === 400 || 404
+                  ? "text-base font-bold pb-2 text-danger" 
+                  : "text-base font-bold pb-2"
               }
             >
               {loading
                 ? "Performing Transaction: Please Wait"
                 : status === 400
                 ? "Transaction Failed!"
+                : status === 404
+                ? "Please Install Metamask"
                 : status === 200
                 ? "Campaign Created!"
                 : null}
@@ -244,6 +245,7 @@ function Index({ campaigns }) {
                 type="submit"
                 className="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded shadow-md"
                 onClick={(e) => handleCreateCampaign(e)}
+                disabled={loading}
               >
                 {loading ? (
                   <div

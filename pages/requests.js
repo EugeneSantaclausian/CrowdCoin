@@ -8,6 +8,7 @@ import Image from "next/image";
 import Modal from "react-bootstrap/Modal";
 import { FiChevronLeft } from "react-icons/fi";
 import { BiCheckCircle } from "react-icons/bi";
+import { BsFillCheckCircleFill } from "react-icons/bs";
 import Campaign from "../ethereum/campaign";
 
 export async function getServerSideProps(context) {
@@ -17,6 +18,7 @@ export async function getServerSideProps(context) {
 
   return {
     props: {
+      campaignBalance: data[1],
       numberofReq: data[3],
       approversCount: data[2],
       contract_address: contractAddress,
@@ -24,11 +26,15 @@ export async function getServerSideProps(context) {
   };
 }
 
-function Requests({ numberofReq, approversCount, contract_address }) {
+function Requests({
+  campaignBalance,
+  numberofReq,
+  approversCount,
+  contract_address,
+}) {
   const [loading, setLoading] = useState(false);
   const [searchReq, setSearchReq] = useState(false);
   const [loadApproval, setLoadApproval] = useState(false);
-  const [loadFinalize, setLoadFinalize] = useState(false);
   const [itemIndex, setItemIndex] = useState();
   const [description, setDescription] = useState("");
   const [receiver, setReceiver] = useState("");
@@ -68,12 +74,21 @@ function Requests({ numberofReq, approversCount, contract_address }) {
   };
 
   const approveRequest = async (index) => {
-    const campaign = Campaign(contract_address);
-    setLoadApproval(true);
+    if (!web3.ethereum.isMetaMask) {
+      setModalText(`Please Install MetaMask`);
+      setAlertStatus(400);
+      setShowAlert(true);
+      return setTimeout(() => {
+        setStatus();
+        setShowAlert(false);
+      }, 3000);
+    }
     try {
+      const campaign = Campaign(contract_address);
       const accounts = await web3.ethereum.request({
         method: "eth_requestAccounts",
       });
+      setLoadApproval(true);
       await campaign.methods.approveRequest(index).send({ from: accounts[0] });
       setAlertStatus(200);
       setModalText("You have voted to approve this Spending Request!");
@@ -88,27 +103,6 @@ function Requests({ numberofReq, approversCount, contract_address }) {
     }
   };
 
-  const finalizeRequest = async (index) => {
-    const campaign = Campaign(contract_address);
-    setLoadFinalize(true);
-    try {
-      const accounts = await web3.ethereum.request({
-        method: "eth_requestAccounts",
-      });
-      await campaign.methods.confirmApproval(index).send({ from: accounts[0] });
-      setAlertStatus(200);
-      setModalText("Transaction Completed: Request Funds have been sent");
-      setShowAlert(true);
-      setReqStatus(reqStatus + 1);
-      return setLoadFinalize(false);
-    } catch (error) {
-      setModalText(`${error.message}`);
-      setAlertStatus(400);
-      setShowAlert(true);
-      return setLoadFinalize(false);
-    }
-  };
-
   const createRequest = async (e) => {
     e.preventDefault();
     if (!description) {
@@ -118,19 +112,28 @@ function Requests({ numberofReq, approversCount, contract_address }) {
       return setValueErr("Enter An Amount");
     } else if (value < 0) {
       return setValueErr("Invalid Amount");
+    } else if (value > Web3.utils.fromWei(campaignBalance, "ether")) {
+      return setValueErr("Request Amount cannot exceed Campaign Balance");
     }
 
     if (!receiver) {
       return setReceiverErr("Receiver is Required");
     }
 
-    setLoading(true);
-    const accounts = await web3.ethereum.request({
-      method: "eth_requestAccounts",
-    });
-    const Contract = Campaign(contract_address);
-    const ethValue = Web3.utils.toWei(value, "ether");
+    if (!web3.ethereum.isMetaMask) {
+      setStatus(404);
+      return setTimeout(() => {
+        setStatus();
+      }, 3000);
+    }
+
     try {
+      const accounts = await web3.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      const Contract = Campaign(contract_address);
+      const ethValue = Web3.utils.toWei(value, "ether");
+      setLoading(true);
       await Contract.methods
         .createRequest(description, ethValue, receiver)
         .send({ from: accounts[0] });
@@ -190,9 +193,15 @@ function Requests({ numberofReq, approversCount, contract_address }) {
         </div>
 
         <h1 className="display-6 font-bold ml-4">Spending Requests</h1>
-        <h1 className="text-xl mb-4 ml-4 truncate">
+        <h1 className="text-xl ml-4 truncate">
           Campaign Address:
           <span className="font-bold">{contract_address}</span>
+        </h1>
+        <h1 className="text-xl mb-4 ml-4 truncate">
+          Campaign Balance:
+          <span className="font-bold">
+            {Web3.utils.fromWei(campaignBalance, "ether")} (ETH)
+          </span>
         </h1>
 
         {/*Add Request Modal*/}
@@ -206,78 +215,84 @@ function Requests({ numberofReq, approversCount, contract_address }) {
             <Modal.Title>New Request</Modal.Title>
           </Modal.Header>
 
-          {loading ? (
-            <div className="text-base font-bold text-dark py-4 ml-2">
-              <div
-                className="spinner-border spinner-border-sm text-primary text-center"
-                role="status"
-              >
-                <span className="visually-hidden">Loading...</span>
-              </div>{" "}
-              Transaction In Progress: Please Wait
-            </div>
-          ) : status === 200 ? (
-            <p className="text-base font-bold text-success py-4 ml-2">
-              Request Created!
-            </p>
-          ) : status === 400 ? (
-            <p className="text-base font-bold text-danger py-4 ml-2">
-              Transaction Failed!
-            </p>
-          ) : (
-            <form className="my-6 mx-6" onSubmit={(e) => createRequest(e)}>
-              <label>Description</label>
-              <input
-                type="text"
-                className="form-control"
-                onChange={(e) => {
-                  setDescErr(""), setDescription(e.target.value);
-                }}
-              />
-              <div id="emailHelp" className="form-text text-danger mb-3">
-                {descErr}
-              </div>
+          <form className="my-6 mx-6" onSubmit={(e) => createRequest(e)}>
+            {loading || status === 200 ? null : (
+              <>
+                <label>Description</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  onChange={(e) => {
+                    setDescErr(""), setDescription(e.target.value);
+                  }}
+                />
+                <div id="emailHelp" className="form-text text-danger mb-3">
+                  {descErr}
+                </div>
 
-              <label className="form-label">Value</label>
-              <input
-                type="number"
-                className="form-control"
-                onChange={(event) => {
-                  setValueErr(""), setValue(event.target.value);
-                }}
-              />
-              <div
-                id="emailHelp"
+                <label className="form-label">Value</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  onChange={(event) => {
+                    setValueErr(""), setValue(event.target.value);
+                  }}
+                />
+                <div
+                  id="emailHelp"
+                  className={
+                    valueErr
+                      ? "form-text text-danger mb-3"
+                      : "form-text text-dark font-bold mb-3"
+                  }
+                >
+                  {valueErr ? valueErr : `(ETH)`}
+                </div>
+
+                <label>Receiver</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  onChange={(e) => {
+                    setReceiverErr(""), setReceiver(e.target.value);
+                  }}
+                />
+                <div id="emailHelp" className="form-text text-danger  mb-3">
+                  {receiverErr}
+                </div>
+              </>
+            )}
+
+            <Modal.Footer className="flex justify-between border-0">
+              <p
                 className={
-                  valueErr
-                    ? "form-text text-danger mb-3"
-                    : "form-text text-dark font-bold mb-3"
+                  loading || status === 200
+                    ? "text-base font-bold pb-2"
+                    : status === 400 || 404
+                    ? "text-base font-bold pb-2 text-danger"
+                    : "text-base font-bold pb-2"
                 }
               >
-                {valueErr ? valueErr : `(ETH)`}
-              </div>
-
-              <label>Receiver</label>
-              <input
-                type="text"
-                className="form-control"
-                onChange={(e) => {
-                  setReceiverErr(""), setReceiver(e.target.value);
-                }}
-              />
-              <div id="emailHelp" className="form-text text-danger  mb-3">
-                {receiverErr}
-              </div>
-
+                {loading
+                  ? "Performing Transaction: Please Wait"
+                  : status === 400
+                  ? "Transaction Failed!"
+                  : status === 404
+                  ? "Please Install Metamask"
+                  : status === 200
+                  ? "Request Created!"
+                  : null}
+              </p>
               {status === 200 ? null : (
                 <button
                   type="submit"
                   className="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded shadow-md"
                   onClick={(e) => createRequest(e)}
+                  disabled={loading}
                 >
                   {loading ? (
                     <div
-                      className="spinner-border spinner-border-sm my-3 text-light text-center"
+                      className="spinner-border spinner-border-sm text-light text-center"
                       role="status"
                     >
                       <span className="visually-hidden">Loading...</span>
@@ -290,8 +305,8 @@ function Requests({ numberofReq, approversCount, contract_address }) {
                   )}
                 </button>
               )}
-            </form>
-          )}
+            </Modal.Footer>
+          </form>
         </Modal>
         {/*Add Request Modal*/}
 
@@ -322,21 +337,20 @@ function Requests({ numberofReq, approversCount, contract_address }) {
           </div>
         ) : !searchReq && requestsList.length === 0 ? (
           <p className="text-2xl py-28 ml-4 text-slate-500">
-            No Available Request Campaigns
+            No Available Request Campaigns {}
           </p>
         ) : (
           <div className="table-responsive mt-6">
-            <table className="table table-striped table-hover table-bordered shadow-md">
+            <table className="table table-hover table-bordered shadow-md">
               <thead>
                 <tr>
                   <th scope="col">#</th>
                   <th scope="col">Description</th>
                   <th scope="col">Value (ETH)</th>
                   <th scope="col">Receipient</th>
-                  <th scope="col">Approvals</th>
+                  <th scope="col">Approval Rate</th>
                   <th scope="col">Status</th>
                   <th scope="col">Approve</th>
-                  <th scope="col">Finalize</th>
                 </tr>
               </thead>
               <tbody>
@@ -348,17 +362,69 @@ function Requests({ numberofReq, approversCount, contract_address }) {
                       <td>{Web3.utils.fromWei(item.value)}</td>
                       <td>{item.receiver}</td>
                       <td>
-                        {item.approvalCount}/{approversCount}
+                        <div className="progress">
+                          <div
+                            className={
+                              Math.round(
+                                (item.approvalCount / approversCount) * 100
+                              ) === 0
+                                ? "progress-bar bg-danger"
+                                : Math.round(
+                                    (item.approvalCount / approversCount) * 100
+                                  ) < 50
+                                ? "progress-bar"
+                                : "progress-bar bg-green-500"
+                            }
+                            role="progressbar"
+                            style={{
+                              width:
+                                Math.round(
+                                  (item.approvalCount / approversCount) * 100
+                                ) === 0
+                                  ? "25%"
+                                  : `${Math.round(
+                                      (item.approvalCount / approversCount) *
+                                        100
+                                    )}%`,
+                            }}
+                            aria-valuenow={`${Math.round(
+                              (item.approvalCount / approversCount) * 100
+                            )}%`}
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                          >
+                            {" "}
+                            {Math.round(
+                              (item.approvalCount / approversCount) * 100
+                            )}
+                            %
+                          </div>
+                        </div>
                       </td>
-                      <td>{item.complete ? "Completed" : "Active"}</td>
                       <td>
                         {item.complete ? (
-                          "Completed"
+                          <BsFillCheckCircleFill
+                            size={"1.5em"}
+                            className="ml-1"
+                            color="#22c55e"
+                          />
+                        ) : (
+                          "Active"
+                        )}
+                      </td>
+                      <td>
+                        {item.complete ? (
+                          <BsFillCheckCircleFill
+                            size={"1.5em"}
+                            className="ml-1"
+                            color="#22c55e"
+                          />
                         ) : (
                           <button
                             onClick={() => (
                               setItemIndex(index), approveRequest(index)
                             )}
+                            disabled={loadApproval}
                             className="flex justify-start bg-blue-500 hover:bg-blue-700 text-white py-2 px-6 rounded shadow-md"
                           >
                             {loadApproval && index === itemIndex ? (
@@ -372,31 +438,6 @@ function Requests({ numberofReq, approversCount, contract_address }) {
                               </div>
                             ) : (
                               "Approve"
-                            )}
-                          </button>
-                        )}
-                      </td>
-                      <td>
-                        {item.complete ? (
-                          "Completed"
-                        ) : (
-                          <button
-                            onClick={() => (
-                              setItemIndex(index), finalizeRequest(index)
-                            )}
-                            className="flex justify-start bg-green-500 hover:bg-green-700 text-white py-2 px-6 rounded shadow-md"
-                          >
-                            {loadFinalize && index === itemIndex ? (
-                              <div
-                                className="spinner-border spinner-border-sm text-light text-center"
-                                role="status"
-                              >
-                                <span className="visually-hidden">
-                                  Loading...
-                                </span>
-                              </div>
-                            ) : (
-                              "Finalize"
                             )}
                           </button>
                         )}
