@@ -362,44 +362,53 @@ function Requests({
                       <td>{Web3.utils.fromWei(item.value)}</td>
                       <td>{item.receiver}</td>
                       <td>
-                        <div className="progress">
-                          <div
-                            className={
-                              Math.round(
-                                (item.approvalCount / approversCount) * 100
-                              ) === 0
-                                ? "progress-bar bg-danger"
-                                : Math.round(
-                                    (item.approvalCount / approversCount) * 100
-                                  ) <= 50
-                                ? "progress-bar"
-                                : "progress-bar bg-green-500"
-                            }
-                            role="progressbar"
-                            style={{
-                              width:
+                        {item.complete ? (
+                          <BsFillCheckCircleFill
+                            size={"1.5em"}
+                            className="ml-1"
+                            color="#22c55e"
+                          />
+                        ) : (
+                          <div className="progress">
+                            <div
+                              className={
                                 Math.round(
                                   (item.approvalCount / approversCount) * 100
                                 ) === 0
-                                  ? "25%"
-                                  : `${Math.round(
+                                  ? "progress-bar bg-danger"
+                                  : Math.round(
                                       (item.approvalCount / approversCount) *
                                         100
-                                    )}%`,
-                            }}
-                            aria-valuenow={`${Math.round(
-                              (item.approvalCount / approversCount) * 100
-                            )}%`}
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                          >
-                            {" "}
-                            {Math.round(
-                              (item.approvalCount / approversCount) * 100
-                            )}
-                            %
+                                    ) <= 50
+                                  ? "progress-bar"
+                                  : "progress-bar bg-green-500"
+                              }
+                              role="progressbar"
+                              style={{
+                                width:
+                                  Math.round(
+                                    (item.approvalCount / approversCount) * 100
+                                  ) === 0
+                                    ? "25%"
+                                    : `${Math.round(
+                                        (item.approvalCount / approversCount) *
+                                          100
+                                      )}%`,
+                              }}
+                              aria-valuenow={`${Math.round(
+                                (item.approvalCount / approversCount) * 100
+                              )}%`}
+                              aria-valuemin="0"
+                              aria-valuemax="100"
+                            >
+                              {" "}
+                              {Math.round(
+                                (item.approvalCount / approversCount) * 100
+                              )}
+                              %
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </td>
                       <td>
                         {item.complete ? (
